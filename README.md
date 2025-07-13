@@ -1,18 +1,16 @@
-# Telescope Park Sensor v1.0.2
+# Telescope Park Sensor v2.0.2 - XIAO Sense Edition
 
-**ESP32 Based Telescope Park Position Sensor with GY-521 Accelerometer/Gyroscope**
+**XIAO nRF52840 Sense Based Telescope Park Position Sensor with Built-in LSM6DS3TR-C IMU**
 
 ---
 
 ## Table of Contents
 - [Overview](#overview)
 - [Hardware Requirements](#hardware-requirements)
-- [Wiring Diagram](#wiring-diagram)
 - [Software Installation](#software-installation)
 - [Serial Command Interface](#serial-command-interface)
-- [Button Controls](#button-controls)
-- [LED Status Indicators](#led-status-indicators)
 - [Operation Guide](#operation-guide)
+- [Advanced Features](#advanced-features)
 - [Troubleshooting](#troubleshooting)
 - [Technical Specifications](#technical-specifications)
 - [Development Notes](#development-notes)
@@ -21,22 +19,23 @@
 
 ## Overview
 
-The Telescope Park Sensor is a precision position monitoring device designed to detect when a telescope is in its "parked" position. Using a 6-axis MPU6050 sensor (3-axis accelerometer + 3-axis gyroscope), it provides accurate pitch and roll measurements to determine telescope orientation.
+The Telescope Park Sensor v2.0.2 is a precision position monitoring device designed to detect when a telescope is in its "parked" position. Built on the XIAO nRF52840 Sense platform with a built-in LSM6DS3TR-C 6-axis IMU, it provides accurate pitch and roll measurements with no external components required.
 
 ### Key Features
+- **Zero external wiring** - Built-in IMU and LED, software-only interface
 - **High-precision positioning** - ±0.01° to ±9.99° configurable tolerance
-- **Serial command interface** - 13 commands for complete control
-- **Physical button controls** - Multi-press sequences for field operation
-- **Visual status indication** - LED shows park status at a glance
-- **Persistent storage** - Settings retained between power cycles
-- **Sensor calibration** - Automatic offset compensation
-- **Debug capabilities** - Runtime toggleable debug messages
+- **Advanced filtering** - Configurable sensor filtering for optimal performance
+- **Serial command interface** - 20+ commands for complete control and diagnostics
+- **Visual status indication** - Built-in LED shows park status
+- **Enhanced storage** - QSPI flash support with RAM fallback
+- **Bluetooth ready** - nRF52840 platform supports BLE (future feature)
+- **Debug capabilities** - Comprehensive diagnostics and runtime debug control
 
 ### Use Cases
 - **Astronomy automation** - ASCOM-compatible telescope parking verification
 - **Safety monitoring** - Ensure telescope is properly stowed
-- **Remote operation** - Serial interface for computer control
-- **Portable operation** - Battery-powered field use
+- **Remote operation** - Serial/Bluetooth interface for computer control
+- **Portable operation** - USB-powered, compact form factor
 
 ---
 
@@ -45,98 +44,24 @@ The Telescope Park Sensor is a precision position monitoring device designed to 
 ### Main Components
 | Component | Model/Type | Quantity | Notes |
 |-----------|------------|----------|--------|
-| **Microcontroller** | ESP32 Development Board | 1 | Any ESP32 dev board with USB |
-| **Sensor Module** | WayinTop GY-521 (MPU6050) | 1 | 6-axis accelerometer/gyroscope |
-| **Push Button** | Momentary switch | 1 | NO (Normally Open) type |
-| **LED** | 5mm LED (any color) | 1 | Red recommended for visibility |
-| **Resistor** | 220Ω - 470Ω | 1 | For LED current limiting |
+| **Microcontroller** | XIAO nRF52840 Sense | 1 | Built-in IMU and LED |
+| **IMU** | LSM6DS3TR-C (built-in) | 1 | 6-axis accelerometer/gyroscope |
+| **LED** | Built-in Blue LED | 1 | Park status indication |
+| **USB Cable** | USB-C | 1 | For programming and power |
 
 ### Optional Components
 | Component | Purpose | Notes |
 |-----------|---------|--------|
-| **External power** | Battery operation | 3.7V LiPo or 5V power bank |
-| **Enclosure** | Weather protection | IP65+ rating for outdoor use |
+| **External power** | Battery operation | 3.7V LiPo or USB power bank |
+| **Enclosure** | Weather protection | Custom 3D printed or small project box |
 | **Mounting hardware** | Telescope attachment | Depends on telescope design |
 
 ### Tools Required
-- Soldering iron and solder
-- Breadboard or perfboard
-- Jumper wires
-- Wire strippers
-- Multimeter (for testing)
+- Computer with Arduino IDE or PlatformIO
+- USB-C cable
+- Mounting hardware (optional)
 
----
-
-## Wiring Diagram
-
-### Pin Connections
-
-#### MPU6050 (GY-521) to ESP32
-```
-MPU6050     ESP32
--------     -----
-VCC    →    3.3V
-GND    →    GND
-SDA    →    GPIO 21 (D21)
-SCL    →    GPIO 22 (D22)
-```
-
-#### Push Button to ESP32
-```
-Button      ESP32
-------      -----
-Pin 1  →    3.3V via 10kΩ pull-up resistor
-Pin 1  →    GPIO 5 (D5)
-Pin 2  →    GND
-```
-*Note: 10kΩ external pull-up resistor and 330µF capacitor for hardware debouncing*
-
-#### Button Debouncing Circuit
-```
-3.3V ──[10kΩ]──┬─── GPIO 5 (D5)
-               │
-               ├─── [Button] ─── GND
-               │
-               └─── [330µF Cap] ─── GND
-```
-
-#### LED to ESP32
-```
-LED         ESP32
----         -----
-Anode  →    GPIO 18 (D18) → 220Ω Resistor
-Cathode →   GND
-```
-
-### Complete Wiring Schematic
-```
-                    ESP32
-                 ┌─────────┐
-    MPU6050      │         │
-   ┌─────────┐   │         │
-   │ VCC─────┼───┤ 3.3V    │
-   │ GND─────┼───┤ GND     │
-   │ SDA─────┼───┤ GPIO21  │
-   │ SCL─────┼───┤ GPIO22  │
-   └─────────┘   │         │
-                 │         │    10kΩ
-    3.3V ────────┼─────────┼──[Resistor]──┬─── GPIO5
-                 │         │              │
-                 │         │       [Button]──── GND
-                 │         │              │
-                 │         │        [330µF Cap]─ GND
-                 │         │
-                 │ GPIO18  ├─── [220Ω] ─── [LED+] ─── GND
-                 │         │
-                 │ USB     ├─── Computer (for programming/serial)
-                 └─────────┘
-```
-
-### Power Considerations
-- **USB Power**: 5V from computer (most common)
-- **External Power**: 3.3V-5V via VIN pin
-- **Current Draw**: ~100mA typical, ~150mA with WiFi (removed in v1.0.2)
-- **Battery Life**: 10-20 hours with 2000mAh power bank
+**Total Cost**: ~$15 USD (just the XIAO board!)
 
 ---
 
@@ -144,59 +69,51 @@ Cathode →   GND
 
 ### Prerequisites
 1. **Arduino IDE** (v1.8.19 or newer) or **PlatformIO**
-2. **ESP32 Board Package** installed in Arduino IDE
+2. **Seeed nRF52 Board Package** 
 3. **Required Libraries**:
-   - `MPU6050` library by Electronic Cats
-   - `Wire` library (included with Arduino)
-   - `Preferences` library (included with ESP32)
+   - `LSM6DS3` library by Seeed Studio
+   - `Wire` library (included)
 
 ### Arduino IDE Setup
-1. **Install ESP32 Board Package**:
+1. **Install Seeed nRF52 Board Package**:
    - File → Preferences
    - Add to Additional Board Manager URLs:
      ```
-     https://dl.espressif.com/dl/package_esp32_index.json
+     https://files.seeedstudio.com/arduino/package_seeeduino_boards_index.json
      ```
    - Tools → Board → Boards Manager
-   - Search "ESP32" and install
+   - Search "Seeed nRF52" and install
 
 2. **Install Libraries**:
    - Tools → Manage Libraries
    - Search and install:
-     - "MPU6050" by Electronic Cats
+     - "LSM6DS3" by Seeed Studio
 
 3. **Board Configuration**:
-   - Board: "ESP32 Dev Module"
-   - Upload Speed: 921600
-   - CPU Frequency: 240MHz
-   - Flash Size: 4MB
-   - Partition Scheme: Default
+   - Board: "Seeed XIAO nRF52840 Sense"
+   - Port: Select your device's COM port
+   - Upload Speed: Default
 
 ### File Structure
 ```
-Telescope_Park_Sensor_v1.0.2/
+main/
 ├── main.ino                    # Main program file
 ├── constants.h                 # Pin definitions and constants
-├── helpers.h                   # Helper function declarations
-├── helpers.cpp                 # Helper function implementations
-├── position_sensor.h           # MPU6050 sensor interface
-├── position_sensor.cpp         # Sensor implementation
-├── serial_interface.h          # Serial command definitions
-├── serial_interface.cpp        # Serial command handlers
-├── button_control.h            # Button handling declarations
-├── button_control.cpp          # Button control implementation
-├── led_control.h               # LED control declarations
-├── led_control.cpp             # LED control implementation
-├── Debug.h                     # Debug system declarations
-└── Debug.cpp                   # Debug system implementation
+├── helpers.h/cpp               # Helper functions and JSON handling
+├── position_sensor.h/cpp       # LSM6DS3TR-C sensor interface
+├── serial_interface.h/cpp      # Serial command handlers
+├── led_control.h/cpp           # LED status control
+├── flash_storage.h/cpp         # Enhanced storage system
+└── Debug.h/cpp                 # Debug system
 ```
 
 ### Upload Process
-1. Connect ESP32 to computer via USB
-2. Select correct COM port in Arduino IDE
-3. Compile and upload the sketch
-4. Open Serial Monitor at 115200 baud
-5. Device should display startup message
+1. Connect XIAO Sense to computer via USB-C
+2. Select "Seeed XIAO nRF52840 Sense" board
+3. Select correct COM port
+4. Compile and upload
+5. Open Serial Monitor at 115200 baud
+6. Device should display startup message
 
 ---
 
@@ -210,14 +127,12 @@ Telescope_Park_Sensor_v1.0.2/
 - **Flow Control**: None
 
 ### Command Format
-Commands use the format: `<XX>` where XX is a 2-digit hexadecimal code.
+Commands use format: `<XX>` where XX is 2-digit hexadecimal code.
 
-**Example**: `<02>` to get current position
+### Core Commands
 
-### Available Commands
-
-| Command | Hex Code | Description | Response Format |
-|---------|----------|-------------|-----------------|
+| Command | Code | Description | Response |
+|---------|------|-------------|----------|
 | **Help** | `<00>` | Show command list | Text help |
 | **Status** | `<01>` | Get device status | JSON with device info |
 | **Position** | `<02>` | Get current pitch/roll | JSON with degrees |
@@ -225,17 +140,33 @@ Commands use the format: `<XX>` where XX is a 2-digit hexadecimal code.
 | **Set Park** | `<04>` | Set current position as park | JSON confirmation |
 | **Get Park** | `<05>` | Get saved park position | JSON with park settings |
 | **Calibrate** | `<06>` | Recalibrate sensor | JSON progress/completion |
-| **Debug Toggle** | `<07>` | Enable/disable debug messages | JSON with new state |
+| **Debug Toggle** | `<07>` | Enable/disable debug | JSON with new state |
 | **Version** | `<08>` | Get firmware version | JSON with version info |
 | **Reset** | `<09>` | Restart device | JSON countdown |
-| **Set Tolerance** | `<0AXXX>` | Set tolerance (XXX=hundredths) | JSON confirmation |
-| **Get Tolerance** | `<0B>` | Get current tolerance | JSON with tolerance |
-| **Button Test** | `<0C>` | Test button functionality | JSON with button state |
+
+### Configuration Commands
+
+| Command | Code | Description | Example |
+|---------|------|-------------|---------|
+| **Set Tolerance** | `<0AXXX>` | Set tolerance (XXX=hundredths) | `<0A200>` = 2.00° |
+| **Get Tolerance** | `<0B>` | Get current tolerance | JSON response |
+| **System Info** | `<0C>` | Get XIAO Sense hardware info | JSON with specs |
+| **Software Set Park** | `<0D>` | Set park without button | JSON confirmation |
+| **Factory Reset** | `<0E>` | Clear all settings | JSON confirmation |
+
+### Advanced Diagnostic Commands (v2.0.2)
+
+| Command | Code | Description | Example |
+|---------|------|-------------|---------|
+| **Toggle Filter** | `<0F>` | Enable/disable sensor filtering | JSON response |
+| **Set Filter Alpha** | `<10XX>` | Set filter strength | `<1020>` = α=0.20 |
+| **Raw Sensor Data** | `<11>` | Get unprocessed sensor readings | JSON with raw data |
+| **Storage Test** | `<12>` | Test persistent storage | JSON test results |
+| **Sensor Diagnostic** | `<13>` | Comprehensive sensor analysis | JSON diagnostic report |
 
 ### Response Format
-All responses are in JSON format:
+All responses are JSON:
 
-**Success Response**:
 ```json
 {
   "status": "ok",
@@ -246,32 +177,11 @@ All responses are in JSON format:
 }
 ```
 
-**Error Response**:
-```json
-{
-  "status": "error",
-  "message": "Failed to read position from sensor"
-}
-```
-
-**Acknowledgment**:
-```json
-{
-  "status": "ack",
-  "command": "02"
-}
-```
-
-### Example Command Session
+### Example Session
 ```
 > <00>
 {"status":"ack","command":"00"}
-Available Commands (use <CODE> format):
----------------------------------------
-<00> - Show this help message
-<01> - Get device status and sensor info
-<02> - Get current pitch and roll values
-...
+[Command help displayed]
 
 > <02>
 {"status":"ack","command":"02"}
@@ -282,150 +192,73 @@ Available Commands (use <CODE> format):
 {"status":"ok","data":{"parkPitch":15.23,"parkRoll":-2.67,"saved":true}}
 ```
 
-### Setting Tolerance Examples
-- `<0A050>` - Set tolerance to 0.50 degrees
-- `<0A010>` - Set tolerance to 0.10 degrees (high precision)
-- `<0A200>` - Set tolerance to 2.00 degrees (relaxed)
-
----
-
-## Button Controls
-
-### Button Functions
-The device includes a single push button with multiple functions based on press duration and patterns:
-
-### Single Press Actions
-| Press Type | Duration | Function |
-|------------|----------|----------|
-| **Short Press** | 100ms - 3s | Part of multi-press sequence |
-| **Long Press** | 3s - 8s | Start sensor calibration |
-| **Very Long Press** | > 8s | Factory reset (clears all data) |
-
-### Multi-Press Sequences
-| Pattern | Function | Safety Feature |
-|---------|----------|----------------|
-| **3 Quick Presses** | Set park position | 500ms confirmation delay |
-| **5 Quick Presses** | Toggle debug messages | 500ms confirmation delay |
-
-### Button Operation Guide
-1. **Setting Park Position**:
-   - Position telescope in desired park position
-   - Press button 3 times quickly (within 1.5 seconds)
-   - Wait for confirmation (LED may blink)
-   - Position is automatically saved
-
-2. **Sensor Calibration**:
-   - Ensure sensor is completely still
-   - Hold button for 3-8 seconds
-   - Release when instructed
-   - Keep still during ~10 second calibration
-   - Calibration data is automatically saved
-
-3. **Factory Reset**:
-   - Hold button for more than 8 seconds
-   - Release when prompted
-   - All settings will be cleared
-   - Device will restart automatically
-
-4. **Debug Toggle**:
-   - Press button 5 times quickly
-   - Debug messages will be enabled/disabled
-   - Useful for troubleshooting
-
-### Button Feedback
-- **Visual**: LED may blink during operations
-- **Serial**: JSON notifications sent via serial
-- **Audio**: None (silent operation)
-
----
-
-## LED Status Indicators
-
-### LED States
-| LED State | Meaning | Duration |
-|-----------|---------|----------|
-| **OFF** | Telescope NOT in park position | Continuous |
-| **ON (Solid)** | Telescope IS in park position | Continuous |
-| **Blinking Pattern** | Sensor initialization error | Continuous until reset |
-
-### LED Behavior Details
-
-#### Normal Operation
-- **LED OFF**: Current position differs from park position by more than tolerance
-- **LED ON**: Current position is within tolerance of park position
-- **Updates**: LED state updates every 50ms for responsive indication
-
-#### Error Patterns
-- **3 Blinks, Pause, 3 Blinks**: Sensor initialization failed
-  - Check sensor connections
-  - Verify power supply
-  - Try restarting device
-
-#### Startup Sequence
-1. **Brief Flash**: LED test during initialization
-2. **OFF**: Normal startup, waiting for position data
-3. **Normal Operation**: LED reflects actual park status
-
-### LED Troubleshooting
-- **LED Never Lights**: Check wiring, resistor value, LED polarity
-- **LED Always On**: Check park position settings, tolerance values
-- **Erratic Blinking**: Possible sensor connection issues
-
 ---
 
 ## Operation Guide
 
 ### Initial Setup
-1. **Mount Sensor**: Attach firmly to telescope or mount
-2. **Connect Power**: USB or external power source
-3. **Verify Operation**: Check serial output and LED function
-4. **Set Park Position**: Use button or serial command when parked
+1. **Connect Device**: Plug XIAO Sense into computer via USB-C
+2. **Verify Operation**: Open serial monitor, check for startup messages
+3. **Mount Sensor**: Attach securely to telescope or mount
+4. **Set Park Position**: Position telescope in park, send `<04>` command
 
 ### Daily Use Workflow
 
-#### Before Observing Session
-1. **Check Status**: Send `<01>` command or observe LED
-2. **Verify Park**: Telescope should be in park position (LED ON)
-3. **Move to Target**: Begin normal telescope operations
+#### Before Observing
+1. **Check Status**: Send `<01>` or observe built-in LED
+2. **Verify Park**: Blue LED should be ON when parked
+3. **Begin Session**: Move telescope to targets
 
-#### After Observing Session
+#### After Observing  
 1. **Return to Park**: Move telescope to park position
-2. **Verify Parking**: LED should turn ON when properly parked
-3. **Double-Check**: Send `<03>` command for detailed status
+2. **Verify Parking**: Blue LED should turn ON
+3. **Confirm**: Send `<03>` for detailed status
 
-#### Periodic Maintenance
-- **Weekly**: Check connections and mounting
-- **Monthly**: Verify calibration accuracy
-- **Seasonally**: Recalibrate if needed (`<06>` command)
+### LED Status Indicators
+
+| LED State | Meaning |
+|-----------|---------|
+| **Blue LED ON** | Telescope IS in park position |
+| **Blue LED OFF** | Telescope NOT in park position |
+| **Blinking Pattern** | Sensor error (check connections) |
 
 ### Calibration Procedure
-1. **Preparation**:
-   - Ensure sensor is completely still
-   - Remove any vibrations (wind, touching)
-   - Stable temperature (avoid direct sunlight)
+1. **Ensure Stability**: Keep sensor completely still
+2. **Start Calibration**: Send `<06>` command
+3. **Wait**: ~10 seconds for completion
+4. **Verify**: Check position readings for stability
 
-2. **Start Calibration**:
-   - Send `<06>` command OR hold button 3-8 seconds
-   - Keep sensor motionless during entire process
-   - Wait for completion message (~10 seconds)
+---
 
-3. **Verification**:
-   - Check position readings for stability
-   - Verify park position detection accuracy
-   - Re-set park position if needed
+## Advanced Features
 
-### Setting Park Position
-1. **Move to Park**: Position telescope in desired park position
-2. **Set Position**: Use `<04>` command OR 3 quick button presses
-3. **Verify**: Check with `<05>` command to confirm settings
-4. **Test**: Move telescope away and back to verify detection
+### Sensor Filtering (v2.0.2)
+Control noise vs. responsiveness trade-off:
 
-### Tolerance Adjustment
-- **Tight Tolerance** (0.1°-0.5°): High precision, may be sensitive to vibration
-- **Medium Tolerance** (0.5°-1.0°): Good balance of precision and stability
-- **Loose Tolerance** (1.0°-3.0°): Robust against vibration, less precise
+```bash
+<0F>     # Toggle filtering on/off
+<1020>   # Set filter alpha to 0.20 (more responsive)
+<1080>   # Set filter alpha to 0.80 (more stable)
+```
 
-**Recommended Starting Value**: 2.0° (factory default)
+**Filter Alpha Guide**:
+- **0.00-0.30**: High responsiveness, more noise
+- **0.30-0.70**: Balanced performance (recommended)
+- **0.70-0.99**: Maximum stability, slower response
+
+### Storage System
+- **Primary**: QSPI Flash (persistent across power cycles)
+- **Fallback**: Enhanced RAM storage (lost on power cycle)
+- **Auto-detection**: System automatically uses best available storage
+
+### Diagnostic Commands
+Get comprehensive sensor health information:
+
+```bash
+<11>     # Raw sensor data with calibration offsets
+<12>     # Test storage read/write functionality  
+<13>     # Full diagnostic with stability analysis
+```
 
 ---
 
@@ -433,269 +266,127 @@ The device includes a single push button with multiple functions based on press 
 
 ### Common Issues
 
-#### Sensor Not Responding
-**Symptoms**: No position data, error messages
-**Solutions**:
-1. Check I2C connections (SDA/SCL)
-2. Verify 3.3V power supply
-3. Try different I2C pins
-4. Replace sensor module
+#### Device Not Responding
+- Check USB-C connection
+- Verify correct COM port selection
+- Try different USB cable
+- Press reset button on XIAO
 
-#### Inaccurate Position Readings
-**Symptoms**: Position readings drift, inconsistent values
-**Solutions**:
-1. Recalibrate sensor (`<06>` command)
-2. Check for mechanical vibration
-3. Verify stable mounting
-4. Allow sensor to reach stable temperature
+#### Inaccurate Readings
+- Recalibrate: `<06>` command
+- Check mounting stability
+- Adjust filter settings: `<0F>` and `<10XX>`
+- Use raw sensor diagnostic: `<11>`
 
 #### Park Position Not Detected
-**Symptoms**: LED doesn't turn on when telescope is parked
-**Solutions**:
-1. Verify park position is set (`<05>` command)
-2. Check tolerance setting (`<0B>` command)
-3. Increase tolerance if too strict
-4. Re-set park position (`<04>` command)
+- Verify park position set: `<05>`
+- Check tolerance: `<0B>`
+- Increase tolerance if too strict: `<0A300>` (3.0°)
+- Re-set park position: `<04>`
 
-#### Button Not Working
-**Symptoms**: Button presses not recognized
-**Solutions**:
-1. Check button wiring and connections
-2. Test with `<0C>` command
-3. Verify pull-up resistor (internal should be enabled)
-4. Replace button if defective
-
-#### Serial Communication Issues
-**Symptoms**: No response to commands, garbled text
-**Solutions**:
-1. Check baud rate (115200)
-2. Verify USB cable and connection
-3. Try different serial terminal
-4. Check COM port selection
-
-#### LED Problems
-**Symptoms**: LED not working, wrong behavior
-**Solutions**:
-1. Check LED polarity (anode to GPIO18)
-2. Verify resistor value (220Ω-470Ω)
-3. Test with multimeter
-4. Check GPIO18 output
+#### LED Not Working
+- LED is built-in and should always work
+- Check with status command: `<01>`
+- Try device reset: `<09>`
 
 ### Diagnostic Commands
-Use these commands to diagnose issues:
-
 ```bash
-<01>    # Get full system status
-<02>    # Check sensor readings
-<03>    # Detailed park position analysis
-<0C>    # Test button functionality
+<01>    # System status
+<02>    # Current position  
+<03>    # Detailed park analysis
+<13>    # Comprehensive diagnostic
 <07>    # Enable debug messages
 ```
 
-### Error Messages
-
-| Error Message | Cause | Solution |
-|---------------|-------|----------|
-| "Failed to read position from sensor" | Sensor connection issue | Check wiring, recalibrate |
-| "Sensor initialization failed" | I2C communication failure | Verify connections, power |
-| "Invalid tolerance value" | Tolerance out of range | Use 001-999 (0.01°-9.99°) |
-| "Failed to save preference" | Storage issue | Try factory reset |
-
-### Factory Reset Procedure
-If all else fails, perform a factory reset:
-1. **Button Method**: Hold button > 8 seconds
-2. **Serial Method**: Send `<09>` command
-3. **Manual**: Re-upload firmware
-
-After reset:
-- Recalibrate sensor
-- Set new park position
-- Adjust tolerance as needed
+### Factory Reset
+Clear all settings and start fresh:
+```bash
+<0E>    # Factory reset command
+```
 
 ---
 
 ## Technical Specifications
 
-### Hardware Specifications
+### Hardware (XIAO nRF52840 Sense)
+- **Processor**: ARM Cortex-M4F @ 64MHz
+- **Memory**: 256KB RAM, 1MB Flash
+- **IMU**: LSM6DS3TR-C 6-axis (built-in)
+- **Connectivity**: USB-C, Bluetooth 5.0 ready
+- **Dimensions**: 21mm × 17.5mm
+- **Power**: USB or 3.7V LiPo
 
-#### ESP32 Microcontroller
-- **Processor**: Dual-core Tensilica LX6, 240MHz
-- **Memory**: 520KB SRAM, 4MB Flash
-- **GPIO**: 30 pins available
-- **Communication**: UART, I2C, SPI
-- **Power**: 3.3V logic, 5V tolerant inputs
-
-#### MPU6050 Sensor (GY-521)
-- **Accelerometer**: ±2g, ±4g, ±8g, ±16g (±2g used)
-- **Gyroscope**: ±250°/s, ±500°/s, ±1000°/s, ±2000°/s
-- **Resolution**: 16-bit ADC
-- **Interface**: I2C (400kHz max, 100kHz used)
-- **Power**: 3.3V-5V supply
-
-#### Position Accuracy
-- **Resolution**: 0.01° minimum
+### Performance
+- **Position Resolution**: 0.01°
 - **Tolerance Range**: 0.01° to 9.99°
-- **Update Rate**: 20Hz (50ms intervals)
-- **Stability**: ±0.1° typical drift
-
-### Software Specifications
-
-#### Firmware
-- **Version**: 1.0.2
-- **Language**: C++ (Arduino framework)
-- **Compiler**: ESP32 GCC toolchain
-- **Libraries**: MPU6050, Wire, Preferences
-
-#### Memory Usage
-- **Program Storage**: ~200KB of 4MB flash
-- **Dynamic Memory**: ~50KB of 520KB SRAM
-- **EEPROM**: Preferences stored in flash
-
-#### Communication
-- **Serial**: 115200 baud, 8N1
-- **Protocol**: JSON-based command/response
-- **Commands**: 13 total commands
-- **Response Time**: <100ms typical
-
-#### Performance
+- **Update Rate**: 20Hz (50ms)
+- **Accuracy**: ±0.1° typical
 - **Boot Time**: ~3 seconds
-- **Command Response**: <50ms
-- **Position Update**: 50ms (20Hz)
-- **Calibration Time**: ~10 seconds
+- **Response Time**: <50ms
 
-### Environmental Specifications
-
-#### Operating Conditions
-- **Temperature**: -10°C to +50°C
+### Environmental
+- **Operating Temperature**: -10°C to +50°C
 - **Humidity**: 0-90% non-condensing
-- **Vibration**: Minimal for best accuracy
-- **Mounting**: Rigid attachment required
-
-#### Power Requirements
-- **Supply Voltage**: 3.3V-5V
-- **Current Draw**: 80-120mA typical
-- **Power Consumption**: 0.4-0.6W
-- **Battery Life**: 10-20 hours (2000mAh)
+- **Power Consumption**: ~50mA @ 3.3V
+- **Battery Life**: 20+ hours (1000mAh)
 
 ---
 
 ## Development Notes
 
 ### Version History
-- **v1.0.0**: Initial development version
-- **v1.0.1**: Added button controls, LED status, serial interface
-- **v1.0.2**: Removed WiFi/ALPACA, refactored code, 2-digit commands
+- **v1.0.x**: ESP32 with external MPU6050, physical buttons/LED
+- **v2.0.1**: Initial XIAO port with enhanced storage
+- **v2.0.2**: Current version with advanced diagnostics and filtering
 
-### Code Architecture
+### Architecture Highlights
+- **Modular design** with separate files for each subsystem
+- **Enhanced storage** with QSPI flash + RAM fallback
+- **Advanced filtering** for noise reduction
+- **Comprehensive diagnostics** for troubleshooting
+- **JSON API** for easy integration
 
-#### Modular Design
-- **constants.h**: All pin definitions and timing constants
-- **helpers.h/cpp**: Shared utility functions and JSON handling
-- **position_sensor.h/cpp**: MPU6050 interface and calibration
-- **serial_interface.h/cpp**: Command parsing and responses
-- **button_control.h/cpp**: Multi-press button handling
-- **led_control.h/cpp**: Status LED management
-- **Debug.h/cpp**: Runtime debug message system
+### Planned Features
+- **v2.1.0**: Bluetooth Low Energy serial interface
+- **v2.2.0**: Environmental sensors (temperature, humidity)
+- **v2.3.0**: Web configuration interface
+- **v3.0.0**: Wireless operation with mobile app
 
-#### Design Patterns
-- **Global state management**: Centralized variable access
-- **JSON responses**: Consistent API format
-- **Helper functions**: Code reuse and maintainability
-- **Preferences abstraction**: Simplified settings storage
-- **Error handling**: Graceful failure and recovery
-
-### Future Enhancements (Planned)
-- **v1.0.3**: Bluetooth serial interface
-- **v1.1.0**: Python ALPACA bridge application
-- **v1.2.0**: Mobile app for configuration
-- **v2.0.0**: Wireless operation with web interface
-
-### Known Limitations
-- **I2C dependency**: Single point of failure
-- **Temperature sensitivity**: May require recalibration
-- **Vibration sensitivity**: Mounting critical for accuracy
-- **Single sensor**: No redundancy or cross-checking
+### Integration
+Works with:
+- **ASCOM drivers** via serial interface
+- **Custom software** using JSON API
+- **Rust bridge application** (in development)
+- **Python scripts** for automation
 
 ### Contributing
-This is a personal project, but suggestions and improvements are welcome:
-- Code optimization
-- Feature requests
-- Bug reports
+- Code optimization suggestions welcome
+- Feature requests via GitHub issues
+- Hardware testing and validation
 - Documentation improvements
 
-### License
-This project is open source. Feel free to modify and adapt for your needs.
+---
+
+## Quick Start Checklist
+
+- [ ] Install Arduino IDE with Seeed nRF52 support
+- [ ] Install LSM6DS3 library by Seeed Studio  
+- [ ] Connect XIAO Sense via USB-C
+- [ ] Upload firmware (select "Seeed XIAO nRF52840 Sense")
+- [ ] Open Serial Monitor at 115200 baud
+- [ ] Send `<00>` for help, `<01>` for status
+- [ ] Mount sensor on telescope
+- [ ] Position telescope in park, send `<04>` to set park
+- [ ] Test by moving telescope and returning to park
+- [ ] Blue LED should indicate park status
+
+**Total setup time**: ~15 minutes
 
 ---
 
-## Appendix
+**Hardware**: XIAO nRF52840 Sense (~$15)  
+**Software**: Arduino IDE (free)  
+**External components**: None required  
+**Wiring**: None required  
 
-### Pin Assignment Reference
-```cpp
-// GPIO Pin Definitions
-#define BUTTON_PIN 5      // GPIO 5 (D5)
-#define LED_PIN 18        // GPIO 18 (D18)
-#define SDA_PIN 21        // Default SDA pin for ESP32
-#define SCL_PIN 22        // Default SCL pin for ESP32
-```
-
-### Command Quick Reference
-```
-<00> Help           <06> Calibrate      <0AXXX> Set Tolerance
-<01> Status         <07> Debug Toggle   <0B> Get Tolerance  
-<02> Position       <08> Version        <0C> Button Test
-<03> Is Parked      <09> Reset
-<04> Set Park       
-<05> Get Park       
-```
-
-### JSON Response Examples
-```json
-// Status Response
-{
-  "status": "ok",
-  "data": {
-    "deviceName": "Telescope Park Sensor",
-    "version": "1.0.2",
-    "manufacturer": "Corey Smart",
-    "parked": true,
-    "calibrated": true,
-    "buttonPressed": false,
-    "ledStatus": true,
-    "freeHeap": 330620,
-    "uptime": 66186
-  }
-}
-
-// Position Response
-{
-  "status": "ok",
-  "data": {
-    "pitch": 15.23,
-    "roll": -2.67
-  }
-}
-
-// Park Status Response
-{
-  "status": "ok",
-  "data": {
-    "parked": true,
-    "currentPitch": 15.25,
-    "currentRoll": -2.65,
-    "parkPitch": 15.23,
-    "parkRoll": -2.67,
-    "tolerance": 2.0,
-    "pitchDiff": 0.02,
-    "rollDiff": 0.02
-  }
-}
-```
-
----
-
-**End of Documentation**
-
-*Last Updated: Version 1.0.2*  
-*Author: Corey Smart*  
-*Project: Telescope Park Sensor*
+*The simplest telescope park sensor you can build!*
