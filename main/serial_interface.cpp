@@ -159,6 +159,21 @@ void processSerialCommand(String command) {
     else if (command == "0E") {  // CMD_FACTORY_RESET
         handleFactoryResetCommand();
     }
+    else if (command == "0F") {  // CMD_TOGGLE_FILTER
+        handleToggleFilterCommand();
+    }
+    else if (command.startsWith("10")) {  // CMD_SET_FILTER_ALPHA
+        handleSetFilterAlphaCommand(command);
+    }
+    else if (command == "11") {  // CMD_RAW_SENSOR_DATA
+        handleRawSensorDataCommand();
+    }
+    else if (command == "12") {  // CMD_STORAGE_TEST
+        handleStorageTestCommand();
+    }
+    else if (command == "13") {  // CMD_SENSOR_DIAGNOSTIC
+        handleSensorDiagnosticCommand();
+    }
     else {
         sendSerialError("Unknown command: " + command + ". Use <00> for help.");
     }
@@ -182,16 +197,25 @@ void printSerialHelp() {
     Serial.println("<0C> - Get system information (XIAO Sense specific)");
     Serial.println("<0D> - Software set park position (no button needed)");
     Serial.println("<0E> - Factory reset (clear all settings)");
+    Serial.println("<0F> - Toggle sensor filtering on/off");
+    Serial.println("<10XX> - Set filter alpha (XX = alpha*100, 00-99)");
+    Serial.println("<11> - Get raw sensor data");
+    Serial.println("<12> - Test persistent storage");
+    Serial.println("<13> - Comprehensive sensor diagnostic");
     Serial.println();
     Serial.println("Command format: <XX> where XX is 2-digit hex code");
     Serial.println("Example: <02> to get current position");
     Serial.println("Example: <0A050> to set tolerance to 0.50 degrees");
+    Serial.println("Example: <1020> to set filter alpha to 0.20");
     Serial.println("Tolerance range: <0A001> to <0A999> (0.01° to 9.99°)");
+    Serial.println("Filter alpha range: <1000> to <1099> (0.00 to 0.99)");
     Serial.println();
     Serial.println("XIAO Sense Features:");
     Serial.println("- Built-in LSM6DS3TR-C IMU (no external wiring needed)");
     Serial.println("- Internal LED status indication");
     Serial.println("- Software-only interface (no physical buttons)");
+    Serial.println("- Enhanced storage system (v2.0.1)");
+    Serial.println("- Advanced sensor filtering and diagnostics");
     Serial.println();
     Serial.println("Response format: JSON");
     Serial.println("Success: {\"status\":\"ok\",\"data\":{...}}");
@@ -432,4 +456,195 @@ void handleFactoryResetCommand() {
     
     delay(3000);
     NVIC_SystemReset();
+}
+
+void handleToggleFilterCommand() {
+    extern bool use_filtering;
+    use_filtering = !use_filtering;
+    setFiltering(use_filtering);
+    
+    JSONBuilder json;
+    json.add("filterEnabled", use_filtering);
+    json.add("message", "Sensor filtering " + String(use_filtering ? "ENABLED" : "DISABLED"));
+    json.add("note", "Disabling filter improves responsiveness but increases noise");
+    sendSerialJSONResponse(json.build());
+}
+
+void handleSetFilterAlphaCommand(String command) {
+    if (command.length() != 4) {
+        sendSerialError("Invalid filter alpha command format. Use <10XX> where XX is alpha*100 (00-99)");
+        return;
+    }
+    
+    String alphaStr = command.substring(2);
+    
+    // Validate that it's all digits
+    for (int i = 0; i < alphaStr.length(); i++) {
+        if (!isDigit(alphaStr.charAt(i))) {
+            sendSerialError("Invalid alpha value. Must be 2 digits (00-99)");
+            return;
+        }
+    }
+    
+    int alphaHundredths = alphaStr.toInt();
+    
+    if (alphaHundredths < 0 || alphaHundredths > 99) {
+        sendSerialError("Alpha out of range. Must be 00-99 (0.00 to 0.99)");
+        return;
+    }
+    
+    float newAlpha = alphaHundredths / 100.0;
+    setFilterAlpha(newAlpha);
+    
+    JSONBuilder json;
+    json.add("filterAlpha", newAlpha);
+    json.add("alphaHundredths", alphaHundredths);
+    json.add("message", "Filter alpha set to " + String(newAlpha, 2));
+    json.add("note", "Lower alpha = more responsive, higher alpha = more filtering");
+    sendSerialJSONResponse(json.build());
+}
+
+void handleRawSensorDataCommand() {
+    Debug.println("=== RAW SENSOR DATA COMMAND ===");
+    
+    // Read raw data directly from IMU
+    extern LSM6DS3 imu;
+    extern float ax_offset, ay_offset, az_offset;
+    extern float gx_offset, gy_offset, gz_offset;
+    
+    float ax_raw = imu.readFloatAccelX();
+    float ay_raw = imu.readFloatAccelY();
+    float az_raw = imu.readFloatAccelZ();
+    float gx_raw = imu.readFloatGyroX();
+    float gy_raw = imu.readFloatGyroY();
+    float gz_raw = imu.readFloatGyroZ();
+    float temp = imu.readTempC();
+    
+    // Calculate calibrated values
+    float ax_cal = ax_raw - ax_offset;
+    float ay_cal = ay_raw - ay_offset;
+    float az_cal = az_raw - az_offset;
+    
+    // Calculate pitch and roll from raw calibrated data
+    float magnitude = sqrt(ax_cal * ax_cal + ay_cal * ay_cal + az_cal * az_cal);
+    float pitch_raw = atan2(-ax_cal, sqrt(ay_cal * ay_cal + az_cal * az_cal)) * 180.0 / PI;
+    float roll_raw = atan2(ay_cal, az_cal) * 180.0 / PI;
+    
+    JSONBuilder json;
+    json.add("ax_raw", ax_raw, 4);
+    json.add("ay_raw", ay_raw, 4);
+    json.add("az_raw", az_raw, 4);
+    json.add("gx_raw", gx_raw, 4);
+    json.add("gy_raw", gy_raw, 4);
+    json.add("gz_raw", gz_raw, 4);
+    json.add("temperature", temp, 2);
+    json.add("ax_calibrated", ax_cal, 4);
+    json.add("ay_calibrated", ay_cal, 4);
+    json.add("az_calibrated", az_cal, 4);
+    json.add("magnitude", magnitude, 4);
+    json.add("pitch_unfiltered", pitch_raw, 3);
+    json.add("roll_unfiltered", roll_raw, 3);
+    json.add("ax_offset", ax_offset, 4);
+    json.add("ay_offset", ay_offset, 4);
+    json.add("az_offset", az_offset, 4);
+    sendSerialJSONResponse(json.build());
+}
+
+void handleStorageTestCommand() {
+    Debug.println("=== STORAGE TEST COMMAND ===");
+    
+    // Use the helper functions instead of direct flash functions
+    JSONBuilder json;
+    json.add("persistentStorageAvailable", false);  // Always false for mbed core
+    
+    // Test enhanced RAM storage instead
+    float testValue = millis() / 1000.0;
+    bool saveSuccess = saveFloatPreference("test_key", testValue);
+    float loadedValue = loadFloatPreference("test_key", -999.0);
+    bool loadSuccess = (abs(loadedValue - testValue) < 0.001);
+    
+    json.add("testSaveSuccess", saveSuccess);
+    json.add("testLoadSuccess", loadSuccess);
+    json.add("testValueSent", testValue, 3);
+    json.add("testValueReceived", loadedValue, 3);
+    json.add("message", "Enhanced RAM storage " + String((saveSuccess && loadSuccess) ? "WORKING" : "FAILED"));
+    json.add("note", "Settings will be lost on power cycle (Seeed mbed core limitation)");
+    
+    sendSerialJSONResponse(json.build());
+}
+
+void handleSensorDiagnosticCommand() {
+    Debug.println("=== COMPREHENSIVE SENSOR DIAGNOSTIC ===");
+    
+    extern LSM6DS3 imu;
+    extern bool use_filtering;
+    extern float alpha;  // REMOVE const from this line
+    
+    // Take multiple readings for stability analysis
+    const int numReadings = 10;
+    float pitchReadings[numReadings];
+    float rollReadings[numReadings];
+    bool allReadingsValid = true;
+    
+    Debug.println("Taking " + String(numReadings) + " readings for stability analysis...");
+    
+    for (int i = 0; i < numReadings; i++) {
+        float pitch, roll;
+        if (readPosition(pitch, roll)) {
+            pitchReadings[i] = pitch;
+            rollReadings[i] = roll;
+        } else {
+            allReadingsValid = false;
+            break;
+        }
+        delay(50);
+    }
+    
+    JSONBuilder json;
+    json.add("diagnosticTime", millis());
+    json.add("readingsRequested", numReadings);
+    json.add("allReadingsValid", allReadingsValid);
+    
+    if (allReadingsValid) {
+        // Calculate statistics
+        float pitchSum = 0, rollSum = 0;
+        float pitchMin = pitchReadings[0], pitchMax = pitchReadings[0];
+        float rollMin = rollReadings[0], rollMax = rollReadings[0];
+        
+        for (int i = 0; i < numReadings; i++) {
+            pitchSum += pitchReadings[i];
+            rollSum += rollReadings[i];
+            
+            if (pitchReadings[i] < pitchMin) pitchMin = pitchReadings[i];
+            if (pitchReadings[i] > pitchMax) pitchMax = pitchReadings[i];
+            if (rollReadings[i] < rollMin) rollMin = rollReadings[i];
+            if (rollReadings[i] > rollMax) rollMax = rollReadings[i];
+        }
+        
+        float pitchAvg = pitchSum / numReadings;
+        float rollAvg = rollSum / numReadings;
+        float pitchRange = pitchMax - pitchMin;
+        float rollRange = rollMax - rollMin;
+        
+        json.add("pitchAverage", pitchAvg, 3);
+        json.add("rollAverage", rollAvg, 3);
+        json.add("pitchRange", pitchRange, 3);
+        json.add("rollRange", rollRange, 3);
+        json.add("pitchStability", (pitchRange < 0.5) ? "GOOD" : (pitchRange < 1.0) ? "FAIR" : "POOR");
+        json.add("rollStability", (rollRange < 0.5) ? "GOOD" : (rollRange < 1.0) ? "FAIR" : "POOR");
+    }
+    
+    // Hardware and configuration info
+    json.add("imuModel", "LSM6DS3TR-C");
+    json.add("filterEnabled", use_filtering);
+    json.add("filterAlpha", alpha, 3);
+    json.add("hasCalibration", hasStoredCalibration());
+    json.add("storageAvailable", false);  // Always false for mbed core
+    
+    // Temperature reading
+    float temperature = imu.readTempC();
+    json.add("temperature", temperature, 1);
+    json.add("temperatureStatus", (temperature > 15 && temperature < 50) ? "NORMAL" : "CHECK");
+    
+    sendSerialJSONResponse(json.build());
 }

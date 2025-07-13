@@ -22,6 +22,13 @@
 #define CMD_SET_PARK_SOFTWARE "0D"
 #define CMD_FACTORY_RESET "0E"
 
+// NEW: Debug and testing commands for v2.0.1
+#define CMD_TOGGLE_FILTER "0F"        // Toggle sensor filtering on/off
+#define CMD_SET_FILTER_ALPHA "10"     // Set filter alpha value
+#define CMD_RAW_SENSOR_DATA "11"      // Get raw sensor readings
+#define CMD_STORAGE_TEST "12"         // Test persistent storage
+#define CMD_SENSOR_DIAGNOSTIC "13"    // Comprehensive sensor diagnostic
+
 // Response codes
 #define RESP_OK "OK"
 #define RESP_ERROR "ERROR"
@@ -52,5 +59,12 @@ void handleGetToleranceCommand();
 void handleSystemInfoCommand();
 void handleSoftwareSetParkCommand();  // New for software-only interface
 void handleFactoryResetCommand();     // New dedicated factory reset
+
+// NEW: Debug and testing command handlers for v2.0.1
+void handleToggleFilterCommand();     // Toggle sensor filtering
+void handleSetFilterAlphaCommand(String command);  // Set filter alpha
+void handleRawSensorDataCommand();    // Get raw sensor readings
+void handleStorageTestCommand();      // Test persistent storage
+void handleSensorDiagnosticCommand(); // Comprehensive sensor diagnostic
 
 #endif // SERIAL_INTERFACE_H

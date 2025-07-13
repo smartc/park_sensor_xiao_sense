@@ -11,7 +11,7 @@ extern const char* DEVICE_NAME;
 
 // GPIO Pin Definitions for XIAO nRF52840 Sense (mbed core)
 // Using built-in LED - mbed core defines LED_BUILTIN (Red LED)
-#define LED_PIN LED_BUILTIN    // Built-in Red LED for park status
+#define LED_PIN LED_BLUE    // Built-in Red LED for park status
 
 // IMU is built-in - no pin definitions needed
 // LSM6DS3TR-C is connected via internal I2C

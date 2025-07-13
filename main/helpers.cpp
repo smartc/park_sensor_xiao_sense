@@ -23,6 +23,7 @@ void updatePositionAndParkStatus() {
         bool newParkedStatus = (pitchDiff <= positionTolerance && rollDiff <= positionTolerance);
         
         // Detailed debug info every 5 seconds to avoid spam
+        /*
         static unsigned long lastDetailedDebug = 0;
         if (millis() - lastDetailedDebug >= 5000) {
             Debug.println("=== PARK DETECTION DEBUG ===");
@@ -40,6 +41,7 @@ void updatePositionAndParkStatus() {
             Debug.println("============================");
             lastDetailedDebug = millis();
         }
+        */
         
         isParked = newParkedStatus;
     } else {

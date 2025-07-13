@@ -35,6 +35,7 @@ void updateLEDStatus(bool isParked) {
     
     currentLEDState = isParked;
     
+    /*
     // Show status for debugging
     Debug.println("=== LED STATUS UPDATE (ACTIVE LOW) ===");
     Debug.println("  Input isParked: " + String(isParked ? "TRUE" : "FALSE"));
@@ -44,6 +45,7 @@ void updateLEDStatus(bool isParked) {
     Debug.println("  LED_BLUE pin: " + String(LED_BLUE));
     Debug.println("  Note: LED is active LOW on this board");
     Debug.println("=======================================");
+    */
     
     lastParkedState = isParked;
 }

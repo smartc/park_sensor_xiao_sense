@@ -18,8 +18,16 @@ void loadCalibration();
 void saveCalibration();
 bool hasStoredCalibration();
 
+// NEW: Filter control functions for improved responsiveness
+void setFiltering(bool enable);
+void setFilterAlpha(float new_alpha);
+
 // Calibration values (using float for LSM6DS3TR-C)
 extern float ax_offset, ay_offset, az_offset;
 extern float gx_offset, gy_offset, gz_offset;
+
+// Filter control variables
+extern bool use_filtering;
+extern float alpha;  // Removed const so we can change it
 
 #endif // POSITION_SENSOR_H

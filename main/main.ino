@@ -1,4 +1,4 @@
-// Telescope Park Sensor v2.0.1 - XIAO Sense Edition (mbed core)
+// Telescope Park Sensor v2.0.2 - XIAO Sense Edition (mbed core)
 // XIAO nRF52840 Sense with Built-in LSM6DS3TR-C IMU
 // Software Interface Only - No External Components Required
 // Enhanced storage system for v2.0.1
@@ -13,7 +13,7 @@
 
 // Device Information definitions (updated to v2.0.1)
 const char* DEVICE_MANUFACTURER = "Corey Smart";
-const char* DEVICE_VERSION = "2.0.1";
+const char* DEVICE_VERSION = "2.0.2";
 const char* DEVICE_NAME = "Telescope Park Sensor XIAO Sense";
 
 // Position variables

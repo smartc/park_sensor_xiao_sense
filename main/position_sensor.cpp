@@ -1,5 +1,6 @@
 #include "position_sensor.h"
 #include "helpers.h"
+#include "flash_storage.h" 
 #include <math.h>
 
 // Use the same approach as the working example
@@ -13,9 +14,13 @@ LSM6DS3 imu(I2C_MODE, 0x6A);
 float ax_offset = 0.0, ay_offset = 0.0, az_offset = 0.0;
 float gx_offset = 0.0, gy_offset = 0.0, gz_offset = 0.0;
 
-// Low-pass filter alpha value (0-1, lower = more filtering)
-const float alpha = 0.8;
+// FIXED: Much lighter filtering for better responsiveness
+// Changed from 0.8 to 0.2 - now uses 80% new data, 20% old filtered data
+float alpha = 0.2;  // Removed const so we can change it
 float filtered_ax = 0, filtered_ay = 0, filtered_az = 0;
+
+// Add option to disable filtering entirely for testing
+bool use_filtering = true;
 
 bool initPositionSensor() {
     Debug.println("Initializing built-in LSM6DS3TR-C IMU on XIAO Sense Plus...");
@@ -48,6 +53,8 @@ bool initPositionSensor() {
     }
     
     Debug.println("✓ Sensor is providing valid data");
+    Debug.println("Filter alpha: " + String(alpha, 2) + " (lower = more responsive)");
+    Debug.println("Filter enabled: " + String(use_filtering ? "YES" : "NO"));
     
     // Load or perform calibration
     if (hasStoredCalibration()) {
@@ -146,29 +153,79 @@ bool readPosition(float &pitch, float &roll) {
     ay -= ay_offset;
     az -= az_offset;
     
-    // Apply low-pass filter to reduce noise
-    filtered_ax = alpha * filtered_ax + (1.0 - alpha) * ax;
-    filtered_ay = alpha * filtered_ay + (1.0 - alpha) * ay;
-    filtered_az = alpha * filtered_az + (1.0 - alpha) * az;
+    // FIXED: Apply lighter filtering or option to disable
+    float final_ax, final_ay, final_az;
+    
+    if (use_filtering) {
+        // Much lighter low-pass filter for better responsiveness
+        filtered_ax = alpha * filtered_ax + (1.0 - alpha) * ax;
+        filtered_ay = alpha * filtered_ay + (1.0 - alpha) * ay;
+        filtered_az = alpha * filtered_az + (1.0 - alpha) * az;
+        
+        final_ax = filtered_ax;
+        final_ay = filtered_ay;
+        final_az = filtered_az;
+    } else {
+        // No filtering - use raw calibrated values
+        final_ax = ax;
+        final_ay = ay;
+        final_az = az;
+    }
     
     // Calculate magnitude and validate
-    float magnitude = sqrt(filtered_ax * filtered_ax + filtered_ay * filtered_ay + filtered_az * filtered_az);
+    float magnitude = sqrt(final_ax * final_ax + final_ay * final_ay + final_az * final_az);
     if (magnitude < 0.1) {  // Was POSITION_MAGNITUDE_THRESHOLD
         Debug.println("Warning: Low accelerometer magnitude detected: " + String(magnitude, 4));
         return false;
     }
     
-    // Calculate pitch and roll from accelerometer data
-    pitch = atan2(-filtered_ax, sqrt(filtered_ay * filtered_ay + filtered_az * filtered_az)) * 180.0 / PI;
-    roll = atan2(filtered_ay, filtered_az) * 180.0 / PI;
+    // IMPROVED: Better pitch and roll calculation with proper handling
+    // Standard aerospace convention pitch and roll calculations
+    pitch = atan2(-final_ax, sqrt(final_ay * final_ay + final_az * final_az)) * 180.0 / PI;
+    roll = atan2(final_ay, final_az) * 180.0 / PI;
     
+    // Additional debug output every 2 seconds when debug enabled
+    /*
+    static unsigned long lastDebugOutput = 0;
+    if (millis() - lastDebugOutput >= 2000) {
+        Debug.println("Sensor data - Raw: ax=" + String(ax, 3) + " ay=" + String(ay, 3) + " az=" + String(az, 3));
+        Debug.println("Sensor data - Final: ax=" + String(final_ax, 3) + " ay=" + String(final_ay, 3) + " az=" + String(final_az, 3));
+        Debug.println("Calculated angles - Pitch=" + String(pitch, 2) + "° Roll=" + String(roll, 2) + "°");
+        Debug.println("Filter enabled: " + String(use_filtering ? "YES" : "NO") + " Alpha: " + String(alpha, 2));
+        lastDebugOutput = millis();
+    }
+    */
+
     // Validate calculated values
     if (!isValidPosition(pitch, roll)) {
         Debug.println("Error: Invalid pitch/roll values calculated from LSM6DS3TR-C");
+        Debug.println("Pitch: " + String(pitch, 4) + " Roll: " + String(roll, 4));
         return false;
     }
     
     return true;
+}
+
+// Simple function to toggle filtering for testing
+void setFiltering(bool enable) {
+    use_filtering = enable;
+    Debug.println("Filtering " + String(enable ? "ENABLED" : "DISABLED"));
+    if (enable) {
+        Debug.println("Filter alpha: " + String(alpha, 2) + " (lower = more responsive)");
+    } else {
+        Debug.println("Using raw sensor data (maximum responsiveness)");
+    }
+}
+
+// Simple function to adjust filter strength
+void setFilterAlpha(float new_alpha) {
+    if (new_alpha >= 0.0 && new_alpha <= 1.0) {
+        alpha = new_alpha;
+        Debug.println("Filter alpha set to: " + String(alpha, 2));
+        Debug.println("(0.0 = no filtering, 1.0 = maximum filtering)");
+    } else {
+        Debug.println("Invalid alpha value. Must be 0.0 to 1.0");
+    }
 }
 
 bool hasStoredCalibration() {
@@ -204,8 +261,10 @@ void saveCalibration() {
     // Also save a timestamp for reference
     saveFloatPreference("cal_timestamp", millis());
     
-    Debug.println("LSM6DS3TR-C (XIAO Sense Plus) - Calibration data saved to memory");
-    Debug.println("Note: Settings will be lost on power cycle (mbed core limitation)");
+    Debug.println("LSM6DS3TR-C (XIAO Sense Plus) - Calibration data saved");
+    // Remove the isFlashStorageAvailable() check, just always show RAM message
+    Debug.println("⚠ Calibration saved to enhanced RAM only - will be lost on power cycle");
+    Debug.println("Note: Enhanced RAM storage includes validation and checksums");
     Debug.println("Accelerometer offsets: X=" + String(ax_offset, 4) + 
                   " Y=" + String(ay_offset, 4) + " Z=" + String(az_offset, 4));
     Debug.println("Gyroscope offsets: X=" + String(gx_offset, 4) + 
